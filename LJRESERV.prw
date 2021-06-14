@@ -10,11 +10,13 @@
 
 User Function LJRESERV()
   Local aRet := {} //Retorno da funcao
-  Local cOperacao := PARAMIXB[1] //- Tipo de Operacao em execucao
-  Local aLojas    := PARAMIXB[2] //- Lojas disponiveis para efetuar a Reserva
-  Local aProdutos := PARAMIXB[3] //- Produtos da venda que a serem reservados
-  Local aEstoque  := PARAMIXB[4] //- Saldos dos Estoques nas lojas/armazem
-  Local aEstoqBKP := aClone(aEstoque)
+  Local cOperacao  := PARAMIXB[1] //- Tipo de Operacao em execucao
+  Local aLojas     := PARAMIXB[2] //- Lojas disponiveis para efetuar a Reserva
+  Local aProdutos  := PARAMIXB[3] //- Produtos da venda que a serem reservados
+  Local aEstoque   := PARAMIXB[4] //- Saldos dos Estoques nas lojas/armazem
+  Local aEstoqBKP  := aClone(aEstoque)
+  Local aLojasClone:= aClone(aLojas)
+  Local cLocPad    := GetMv("MV_LOCPAD")
   Local nX := 0
   Local nY := 0
   Local nZ := 0
@@ -25,11 +27,15 @@ User Function LJRESERV()
   Local lContinua := .F.
   Local cItem := ""
   Local cProduto := ""
+  Local cDescric := ""
+  Local nQtde    := 0
+  Local nSaldo   := 0
+  Local aSaldoSB2 := {}
   Local lTemEstoque := .T.
   Local aPrdSemEst := {} //- Produtos sem estoque
   Local cMsg := ""
-  Local cCodFil := Substr(xFilial("SLJ"),1,2)
-  Local cCodigo := Padl(xFilial("SLJ"),6)
+  Local nPosLoj:=0
+  Local cCodFil := Padr(SM0->M0_CODFIL,6) //- Foi usado no código da loja na SLJ o mesmo código da filial do SIGAMAT
 
   //---------------------------------------------------------------------------------------------
   // Estrutura do array aLojas
@@ -73,30 +79,24 @@ User Function LJRESERV()
   //[8] - Numero do item no aCols
   //[9] - Armazem
   //---------------------------------------------------------------------------------------------
-  SCJ->(DbSetOrder(1))
-  SCJ->(DbSeek(xFilial('SCJ')+cCodFil))
-
-  alert('1->'+cCodFil)
-  alert('2->'+cCodigo)
-  
-  alert('3->'+cCodFil)
-  alert('4->'+SLJ->LJ_NOME)
-  alert('5->'+SLJ->LJ_CODIGO)
-  alert('6->'+cOperacao)
+  nPosLoj := aScan(aLojasClone,{|x| x[2] == cCodFil }) //- Localiza a loja corrente no array aLojas 
 
   Do Case
-     //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
-	  //³ Operacao 1: Selecao das "LOJAS" onde serao reservados os produtos e selecao dos "PRODUTOS" que serao reservados ³
-	  //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
      Case cOperacao == "1"
+        //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	     //³ Operacao 1: Selecao das "LOJAS" onde serao reservados os produtos e selecao dos "PRODUTOS" que serao reservados ³
+	     //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
         //-------------------------------------------
         // Escolha da LOJA onde sera feita a reserva
         //-------------------------------------------
-        alert(aLojas[1][1])
-        alert(aLojas[1][2])
-        alert(aLojas[1][3])
-
         aLojas[1][1] := .T. //- Neste exemplo, sempre considera a escolha (selecao) da primeira loja
+        aLojas[1][2] := aLojasClone[nPosLoj][2] //- Cõdigo da loja
+        aLojas[1][3] := aLojasClone[nPosLoj][3] //- Nome da loja
+
+        alert(aLojas[1][1])
+        alert('2->'+aLojas[1][2])
+        alert('3->'+aLojas[1][3])
+
         //-------------------------------------------
         // Escolha dos PRODUTOS que serao reservados
         //-------------------------------------------
@@ -107,38 +107,72 @@ User Function LJRESERV()
            If !Empty(aCols[nPosAcols][nENTREGA]) .And. aCols[nPosAcols][nENTREGA] == "1" //antes era 3=Entrega
               aProdutos[nX][1] := .T.
            EndIf
+
+           alert(aProdutos[nX][1])
+           alert('2->'+aProdutos[nX][2])
+           alert('3->'+aProdutos[nX][3])
+           alert('4->'+aProdutos[nX][4])
+           alert('5->'+str(aProdutos[nX][5]))
+
         Next nX
-        lConfirma := .T. //Confirma as informacoes selecionadas.
+        lConfirma := .T. //- Confirma as informacoes selecionadas.
+     Case cOperacao == "2"
    	  //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
 	     //³ Operacao 2: Selecao do "ARMAZEM" (Local de Estoque) relacionado a loja onde serao reservados os produtos ³
 	     //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
-     Case cOperacao == "2"
-        //- Efetua a reserva dos produtos
-        For nX:=1 To Len(aProdutos)
-           cItem := aProdutos[nX][2] //Item da venda
-           cProduto := aProdutos[nX][3] //Codigo do Produto
-           //- Faz a Reserva no primeiro Local de Estoque (Armazem) encontrado para a loja escolhida que possua saldo
-           For nY := 1 To Len(aEstoque)
-              If aEstoque[nY][8] == cItem .And. aEstoque[nY][4] == cProduto
-                 lTemEstoque := .F.
-                 For nZ:=1 To Len(aEstoque[nY][5])
-                    //- Verifica se tem a quantidade o suficiente em estoque para reservar
-                    If aEstoque[nY][5][nZ][2] >= aEstoque[nY][6] .And. aEstoque[nY][5][nZ][1] == aEstoque[nY][9]
-                       aEstoque[nY][5][nZ][2] -= aEstoque[nY][6] //- Subtrai a qtde
-                       lTemEstoque := .T.
-                       Exit
-                    EndIf
-                 Next nZ
-                 If lTemEstoque
-                    aEstoque[nY][1] := .T. //Seleciona
-                    Exit
-                 EndIf
-              EndIf
-           Next nY
+        aEstoque := {} //Limpa o array aEstoque
+   	  //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	     //³ Preenchendo array aEstoque ³
+	     //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+        For nY:= 1 To Len(aProdutos)
+           cItem     := aProdutos[nY][2] //- Item da venda
+           cProduto  := aProdutos[nY][3] //- Codigo do Produto
+           nQtde     := aProdutos[nY][5] //- Quantidade
+           
+           lTemEstoque := .F.
+           
+           //- Gravando saldo em estoque no sub-array 
+           SB2->(DbSetOrder(1))
+           SB2->(DbSeek(xFilial("SB2")+cProduto+cLocPad))
+           
+           nSaldo := SB2->B2_QATU - SB2->B2_RESERVA
+           
+           aSaldoSB2 := {}
+           Aadd(aSaldoSB2,{SB2->B2_LOCAL, nSaldo})
+
+  			  aAdd( aEstoque, { .F., ;
+                             aLojasClone[nPosLoj][2],; 
+                             Trim(aLojasClone[nPosLoj][3]),;
+                             cProduto,; 
+                             aSaldoSB2,;                              
+                             nQtde,;
+                             Trim(aLojasClone[nPosLoj][3]),; 
+                             cItem,; 
+                             cLocPad }) 
+           nPos := Len(aEstoque)
+       
+           //- Verifica se tem saldo o suficieente para o produto
+           If aEstoque[nPos][5][1][2] >= nQtde
+              aEstoque[nPos][5][1][2] -= nQtde
+              aEstoque[nY][1] := .T. // Seleciona item
+              lTemEstoque := .T.
+           Endif
+           
+           alert(aEstoque[nY][1])
+           alert('2->'+aEstoque[nY][2])
+           alert('3->'+aEstoque[nY][3])
+           alert('4->'+aEstoque[nY][4])
+           alert('5.1->'+aEstoque[nY][5][1][1])
+           alert('5.2->'+str(aEstoque[nY][5][1][2]))
+           alert('6->'+str(aEstoque[nY][6]))
+           alert('7->'+aEstoque[nY][7])
+           alert('8->'+aEstoque[nY][8])
+           alert('9->'+aEstoque[nY][9])
+           
            If !lTemEstoque
               aAdd( aPrdSemEst, AllTrim(cProduto) + " - " + AllTrim(Posicione("SB1",1,xFilial("SB1")+cProduto,"B1_DESC")) )
            EndIf
-        Next nX
+        Next
         lConfirma := .T.
         //- Se nao tem estoque suficiente para reservar todos os produtos, entao aborta todas as reservas
         If Len(aPrdSemEst) > 0
