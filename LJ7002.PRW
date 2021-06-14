@@ -38,10 +38,15 @@ User Function LJ7002()
    	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
 	//³ Gravação do peso bruto e liquido no orcamento ³
 	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
- 	If ParamIXB[1] == 1  // Se for gravacao como orçamento
+ 	If ParamIXB[1] == 1
 	   U_BLBLOJP01()
     Endif
-    
+   	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Grava reserva se o tipo da operação for 2=faturamento ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+ 	If ParamIXB[1] == 1  .And. SL1->L1_XTPOPER == "2"
+       U_BLLOJP02()
+	Endif   
 	If ParamIXB[1] == 2     // Se for finalização de venda
 	   If SL1->(FieldPos("L1_XMENNOT")) > 0 // Verifica se o campo existe na SL1
 	 	  dbSelectArea("SF2") 
@@ -58,7 +63,6 @@ User Function LJ7002()
 	   If ExistBlock("MATUCOMP")
 	      U_MATUCOMP()
        Endif
-
     Endif
 	//If MsgYesNo("Deseja emitir relatório separação?")
 	//	U_RLOJR001(SL1->L1_NUM,.F.) //chama o relatório de separação
