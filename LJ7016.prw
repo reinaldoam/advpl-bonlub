@@ -22,5 +22,4 @@ Local aRet  := {}
 
 aFuncoes[11][6] := .F.
 aAdd( aRet, {'Pesquisa', 'Produto', 'SOLICITA', {|| U_LJCtrlj()}, .T., .T., 4, {10 ,'Ctrl+J'}  } )
-
 Return aRet
