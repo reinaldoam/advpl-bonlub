@@ -1,6 +1,20 @@
 #INCLUDE "TOPCONN.CH"
 #include "protheus.ch"
 
+/*
+_____________________________________________________________________________
+¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦
+¦¦+-----------------------------------------------------------------------+¦¦
+¦¦¦Função    ¦ PE01NFESEFAZ                               Data: 18/06/2021¦¦¦
+¦¦+----------+------------------------------------------------------------¦¦¦
+¦¦¦Descriçào ¦ Ponto de entrada para gerar realizar tratativas no XML da  ¦¦¦
+¦¦¦          ¦ NFE.                                                       ¦¦¦
+¦¦+----------+------------------------------------------------------------¦¦¦
+¦¦¦ Uso      ¦TOTVS                                                       ¦¦¦
+¦¦+-----------------------------------------------------------------------+¦¦
+¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯     
+*/
 USER FUNCTION PE01NFESEFAZ()
   Local aProd     := PARAMIXB[1]
   Local cMensCli  := PARAMIXB[2]
@@ -30,7 +44,8 @@ USER FUNCTION PE01NFESEFAZ()
   Local cLoja    := ""    
   Local cItem    := ""
   Local cCodigo  := ""
-
+  
+  Local cAliasSD1:= "SD1"
   Local cAliasSD2:= "SD2"
 
   //- Cadastro de produtos
@@ -44,6 +59,8 @@ USER FUNCTION PE01NFESEFAZ()
   //- Item nota de saida
   DbSelectArea("SD2")
   dbSetOrder(3)
+
+  aComb := {} //- Limpa o array aComb
 
   //O retorno deve ser exatamente nesta ordem e passando o conteúdo completo dos arrays
   //pois no rdmake nfesefaz é atribuido o retorno completo para as respectivas variáveis
@@ -88,15 +105,13 @@ USER FUNCTION PE01NFESEFAZ()
            SB1->(DbSeek(xFilial("SB1")+cCodigo))
           
            If !Empty(SB1->B1_XCODANP) //- Considera somente se tiver código ANP preenchido
-
+           
   			     dbSelectArea("CD6")
 				  dbSetOrder(1)
 					  
               If MsSeek(xFilial("CD6")+"S"+(cAliasSD2)->D2_SERIE+(cAliasSD2)->D2_DOC+(cAliasSD2)->D2_CLIENTE+(cAliasSD2)->D2_LOJA+Padr((cAliasSD2)->D2_ITEM,4)+(cAliasSD2)->D2_COD)
    
-                 alert("Preenchendo aComb")
-
-	 			     Aadd(aComb,{CD6->CD6_CODANP,;
+  	 			     Aadd(aComb,{CD6->CD6_CODANP,;
 						           CD6->CD6_SEFAZ,;
 						           CD6->CD6_QTAMB,;
 						           CD6->CD6_UFCONS,;
@@ -120,6 +135,8 @@ USER FUNCTION PE01NFESEFAZ()
 						           0,;
 						        	  0})
               Endif
+           Else
+              Aadd(aComb,{"", "", 0, "",  0, 0, 0, "", "", "", "", "", "", "", "", "", "", "", 0, 0, 0, 0, 0})   
            Endif     
            DbSelectArea("SD2") 
            SD2->(DbSkip())
@@ -127,8 +144,69 @@ USER FUNCTION PE01NFESEFAZ()
      Endif      
   Else
      //- Nota de entrada
-  Endif         
+	  If AliasIndic("CD6")  .And. CD6->(FieldPos("CD6_QTAMB")) > 0 .And. CD6->(FieldPos("CD6_UFCONS")) > 0  .And. CD6->(FieldPos("CD6_BCCIDE")) > 0 .And. CD6->(FieldPos("CD6_VALIQ")) > 0 .And. CD6->(FieldPos("CD6_VCIDE")) > 0
+        
+        U_BLLOJP04(cTipo) //- Chamada função para gravar dados ANP na tabela CD6
+      
+        cDoc     := SF1->F1_DOC     
+        cSerie   := SF1->F1_SERIE  
+        cCliefor := SF1->F1_FORNECE
+        cLoja    := SF1->F1_LOJA    
 
+  	     dbSelectArea("SF1")
+	     dbSetOrder(1)
+	     MsSeek(xFilial("SF1")+cDoc+cSerie+cCliefor+cLoja)
+         
+        dbSelectArea("SD1")
+	     dbSetOrder(1)	
+        MsSeek(xFilial("SD1")+SF1->F1_DOC+SF1->F1_SERIE+SF1->F1_FORNECE+SF1->F1_LOJA)
+
+        Do While !SD1->(Eof()) .And. SD1->(D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA) ==  SF1->(F1_FILIAL+F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA)
+              
+           SB1->(DbSeek(xFilial("SB1")+SD1->D1_COD))
+              
+           If !Empty(SB1->B1_XCODANP) //- Considera somente se tiver código ANP preenchido
+           
+              cItem   := SD1->D1_ITEM
+              cCodigo := SD1->D1_COD  
+
+  			     dbSelectArea("CD6")
+			     dbSetOrder(1)
+					  
+              If MsSeek(xFilial("CD6")+"E"+(cAliasSD1)->D1_SERIE+(cAliasSD1)->D1_DOC+(cAliasSD1)->D1_FORNECE+(cAliasSD1)->D1_LOJA+Padr((cAliasSD1)->D1_ITEM,4)+(cAliasSD1)->D1_COD)
+
+      		     Aadd(aComb,{CD6->CD6_CODANP,;
+						           CD6->CD6_SEFAZ,;
+						           CD6->CD6_QTAMB,;
+						           CD6->CD6_UFCONS,;
+						           CD6->CD6_BCCIDE,;
+						           CD6->CD6_VALIQ,;
+						           CD6->CD6_VCIDE,;
+						           IIf(CD6->(FieldPos("CD6_MIXGN")) > 0,CD6->CD6_MIXGN,""),;
+						           "",;
+						           "",;
+						           "",;
+						           "",;
+						           "",;
+						           IIf(CD6->(ColumnPos("CD6_DESANP")) > 0,CD6->CD6_DESANP,""),;
+						           IIf(CD6->(ColumnPos("CD6_PGLP")) > 0,CD6->CD6_PGLP,""),;
+						           IIf(CD6->(ColumnPos("CD6_PGNN")) > 0,CD6->CD6_PGNN,""),;
+						           IIf(CD6->(ColumnPos("CD6_PGNI")) > 0,CD6->CD6_PGNI,""),;
+						           IIf(CD6->(ColumnPos("CD6_VPART")) > 0,CD6->CD6_VPART,""),;
+								     0,;
+								     0,;
+								     0,;
+								     0,;
+							        0})
+              Endif
+           Else
+              Aadd(aComb,{"", "", 0, "",  0, 0, 0, "", "", "", "", "", "", "", "", "", "", "", 0, 0, 0, 0, 0})   
+            Endif    
+           dbSelectArea("SD1")
+           SD1->(dbSkip()) 
+        Enddo   
+     Endif
+  Endif         
   aadd(aRetorno,aProd)
   aadd(aRetorno,cMensCli)
   aadd(aRetorno,cMensFis)
@@ -148,5 +226,4 @@ USER FUNCTION PE01NFESEFAZ()
   aadd(aRetorno,aObsCont)
   aadd(aRetorno,aProcRef)
   aadd(aRetorno,aComb)
- 
 RETURN aRetorno

@@ -6257,7 +6257,7 @@ IF lPe01Nfe
 	aParam := {aProd,cMensCli,cMensFis,aDest,aNota,aInfoItem,aDupl,aTransp,aEntrega,aRetirada,aVeiculo,aReboque,aNfVincRur,aEspVol,aNfVinc,aDetPag,aObsCont,aProcRef,aComb,cTipo}
 
 	aParam := ExecBlock("PE01NFESEFAZ",.F.,.F.,aParam)
-	
+
 	If ( Len(aParam) >= 5 )
 		aProd		:= aParam[1]
 		cMensCli	:= aParam[2]
@@ -6290,7 +6290,6 @@ IF lPe01Nfe
 Endif 
 
 nLenaIpi := Len(aCstIpi) // Tratamento para CST IPI.
-
 	
 //Geracao do arquivo XML
 If !Empty(aNota)

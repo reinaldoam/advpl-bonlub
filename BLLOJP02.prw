@@ -124,7 +124,7 @@ Static Function IncBLLOJP02
         SL2->L2_RESERVA := cNumRes
         SL2->L2_LOJARES := xFilial("SL2")
         SL2->L2_FILRES  := xFilial("SL2")
-        SL2->L2_ENTREGA := '1' //- Retira posterior 
+        SL2->L2_ENTREGA := '2' //- Grava retira como padrão 
         MsUnLock()
      Else
         SB1->(dbseek(xFilial("SB1")+SL2->L2_PRODUTO))

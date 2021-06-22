@@ -43,5 +43,11 @@ User Function LJ7002()
   //읕컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴켸
   If ParamIXB[1] == 1  .And. SL1->L1_XTPOPER == "2"
      U_BLLOJP02()
-  Endif   
+  Endif 
+  If ParamIXB[1] == 2 //- Finalizado como venda
+     //u_BLLOJP04("1") - Chamado para gravar a tabela CD6
+     //If AllTrim(SF2->F2_SERIE) $ GetMV("MV_ESPECIE")
+	  //   AutoNfeEnv(cEmpAnt, SF2->F2_FILIAL, "0", "1", SF2->F2_SERIE, SF2->F2_DOC, SF2->F2_DOC)
+	  //Endif
+  Endif
 Return

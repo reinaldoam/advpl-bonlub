@@ -28,8 +28,8 @@ User Function BLLOJP03(cNumOrc,lMenu)
   //읕컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴켸
   If lMenu
      If MsgYesNo("Confirma cancelamento da reserva ?")
-	    lOk:= .T.
-	 EndIf
+	     lOk:= .T.
+	  EndIf
   Endif     
   
   If !lOk  
