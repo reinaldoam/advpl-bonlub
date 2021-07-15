@@ -90,7 +90,8 @@ User Function BLLOJP03(cNumOrc,lMenu)
   Enddo
   If lRet
      RecLock("SL1",.F.)
-     SL1->L1_RESERVA := "" //- Limpa reserva
+     SL1->L1_RESERVA := ""  //- Limpa reserva
+     //SL1->L1_XTPOPER := "1" //- Volta como orçamento
      MsUnLock()	
   Endif
   RestArea(_aArea)

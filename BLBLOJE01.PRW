@@ -83,8 +83,10 @@ oPLst:SetFocus()
 ACTIVATE MSDIALOG oDlg701 VALID nOpcB <> 0
 
 If nPreco < nPreco4
-   MSGINFO( 'Preço abaixo da tabela 4', 'Preço' )
-   nPreco := nPreco1 
+   //If ( !LjProfile( 11 ) )   
+      MSGINFO( 'Preço abaixo da tabela 4', 'Preço' )
+      nPreco := nPreco1
+   //Endif   
 Endif
 
 M->LR_VRUNIT      := nPreco

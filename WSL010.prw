@@ -47,105 +47,115 @@ Preços na tabela SB0.
 /*/
 //-------------------------------------------------------------------
 
-User function fProcWsl010()
+User Function fProcWsl010()
+  Local _cSql := ""
+  Local cPerg := "WSL010"
+  Local nCM1  := 0
+  
+  Private nPrcSB0 := 0
 
-Local _cSql := ""
-Local cPerg := "WSL010"
-Local nCM1  := 0
-
-Private nPrcSB0 := 0
-
-If !Pergunte(cPerg, .T.)
-	Return(NIL)
-EndIf
-
-cGrupoDe    := MV_PAR01
-cGrupoAte   := MV_PAR02
-cUMDe       := MV_PAR03
-cUMAte      := MV_PAR04
-nTipoPrc    := MV_PAR05
-
-If (Select("TMP"))
-    dbSelectArea("TMP")
-    TMP->(dbCloseArea ())
-Endif
-
-_cSql := " SELECT B1_COD,B1_GRUPO,B1_UM,B9_CM1,B1_GRTRIB,B1_UPRC "
-_cSql += " FROM " +RetSQLName("SB9")+ " SB9 "
-_cSql += " INNER JOIN " +RetSQLName("SB1")+ " SB1 ON B1_COD=B9_COD AND B1_COD <> ' ' AND SB1.D_E_L_E_T_ = ' ' "
-_cSql += " WHERE SB9.D_E_L_E_T_ = ' ' "
-_cSql += " AND B1_GRUPO BETWEEN '"+cGrupoDe+"' AND '"+cGrupoAte+"' "
-_cSql += " AND B1_UM BETWEEN '"+cUMDe+"' AND '"+cUMAte+"' "
-_cSql += " AND B9_CM1 > 0 "
-_cSql += " AND B9_COD <> ' ' "
-_cSql += " AND B9_FILIAL ='0101' "
-_cSql += " ORDER BY B1_COD "
-
-TCQUERY _cSql NEW ALIAS "TMP"
-dbSelectArea("TMP")
-DbGoTop()
-
-nIcms := (100 - GetMV("MV_ICMPAD")) / 100
-
-Do While !TMP->(EOF())
-   cProduto  := TMP->B1_COD
-   cGrupoSB1 := TMP->B1_GRUPO
-   cUM       := TMP->B1_UM
-   nCM1      := TMP->B9_CM1
-   cGrTrib   := Alltrim(TMP->B1_GRTRIB)
-
-   If nTipoPrc = 1 //- Custo médio
-      nCM1 := CustoMedio(TMP->B1_COD) //TMP->B9_CM1   
-   ElseIf cTipoPrc = 2 //- Custo reposição
-      nCM1 := TMP->B1_UPRC
-   Endif 
-    
-   SB0->(dbSetOrder(1))
-
-   Begin Transaction
-      If SB0->(dbSeek(xFilial("SB0")+cProduto))
-         RecLock("SB0",.F.)
-      Else           
-         RecLock("SB0",.T.)
-      Endif   
-      SB0->B0_FILIAL := xFilial("SB0") 
-      SB0->B0_COD    := cProduto
+  If !Pergunte(cPerg, .T.)
+     Return(NIL)
+  EndIf
+  
+  cGrupoDe    := MV_PAR01
+  cGrupoAte   := MV_PAR02
+  cUMDe       := MV_PAR03
+  cUMAte      := MV_PAR04
+  nTipoPrc    := MV_PAR05
+  
+  If (Select("TMP"))
+     dbSelectArea("TMP")
+     TMP->(dbCloseArea ())
+  Endif
+  
+  _cSql := " SELECT B1_COD,B1_GRUPO,B1_UM,B9_CM1,B1_GRTRIB,B1_UPRC "
+  _cSql += " FROM " +RetSQLName("SB9")+ " SB9 "
+  _cSql += " INNER JOIN " +RetSQLName("SB1")+ " SB1 ON B1_COD=B9_COD AND B1_COD <> ' ' AND SB1.D_E_L_E_T_ = ' ' "
+  _cSql += " WHERE SB9.D_E_L_E_T_ = ' ' "
+  _cSql += " AND B1_GRUPO BETWEEN '"+cGrupoDe+"' AND '"+cGrupoAte+"' "
+  _cSql += " AND B1_UM BETWEEN '"+cUMDe+"' AND '"+cUMAte+"' "
+  _cSql += " AND B9_CM1 > 0 "
+  _cSql += " AND B9_COD <> ' ' "
+  _cSql += " AND B9_FILIAL ='0101' "
+  _cSql += " ORDER BY B1_COD "
+  
+  TCQUERY _cSql NEW ALIAS "TMP"
+  dbSelectArea("TMP")
+  DbGoTop()
+  
+  nIcms := (100 - GetMV("MV_ICMPAD")) / 100
+  
+  Do While !TMP->(EOF())
+     cProduto  := TMP->B1_COD
+     cGrupoSB1 := TMP->B1_GRUPO
+     cUM       := TMP->B1_UM
+     nCM1      := TMP->B9_CM1
+     cGrTrib   := Alltrim(TMP->B1_GRTRIB)
+     
+     If nTipoPrc = 1 //- Custo médio
+        nCM1 := CustoMedio(TMP->B1_COD) //TMP->B9_CM1   
+     ElseIf cTipoPrc = 2 //- Custo reposição
+        nCM1 := TMP->B1_UPRC
+     Endif 
+     
+     SB0->(dbSetOrder(1))
+     
+     Begin Transaction
+        
+        If SB0->(dbSeek(xFilial("SB0")+cProduto))
+           RecLock("SB0",.F.)
+        Else           
+           RecLock("SB0",.T.)
+        Endif   
+        SB0->B0_FILIAL := xFilial("SB0") 
+        SB0->B0_COD    := cProduto
+        
+        //- Preço 1
+        nPrcSB0 := 0
+        Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"1")}, "Aguarde...", "Processando Preço 1",.F.)
+        If cGrTrib == "001" //- ICMS Tributado integralmente
+           nPrcSB0 := nPrcSB0 / nIcms 
+        Endif
+        SB0->B0_PRV1 := nPrcSB0
        
-      //- Preço 1
-      nPrcSB0 := 0
-      Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"1")}, "Aguarde...", "Processando Preço 1",.F.)
-      If cGrTrib == "001" //- ICMS Tributado integralmente
-         nPrcSB0 := nPrcSB0 / nIcms 
-      Endif
-      SB0->B0_PRV1 := nPrcSB0
-       
-      //- Preço 2
-      nPrcSB0 := 0
-      Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"2")}, "Aguarde...", "Processando Preço 2",.F.)
-      If cGrTrib == "001" //- Tributado integralmente
-         nPrcSB0 := nPrcSB0 / nIcms 
-      Endif
-      SB0->B0_PRV2 := nPrcSB0
-       
-      //- Preço 3
-      nPrcSB0 := 0
-      Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"3")}, "Aguarde...", "Processando Preço 3",.F.)
-      If cGrTrib == "001" //- Tributado integralmente
-         nPrcSB0 := nPrcSB0 / nIcms 
-      Endif
-      SB0->B0_PRV3 := nPrcSB0
-       
-      //- Preço 4
-      nPrcSB0 := 0
-      Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"4")}, "Aguarde...", "Processando Preço 4",.F.)
-      SB0->B0_PRV4 := nPrcSB0
-      SB0->(MsUnlock())
-   End Transaction
-   TMP->(dbSkip())
-Enddo
-
-ApMsgInfo("Processamento concluido com sucesso!")
-
+        //- Preço 2
+        nPrcSB0 := 0
+        Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"2")}, "Aguarde...", "Processando Preço 2",.F.)
+        If cGrTrib == "001" //- Tributado integralmente
+           nPrcSB0 := nPrcSB0 / nIcms 
+        Endif
+        SB0->B0_PRV2 := nPrcSB0
+        
+        //- Preço 3
+        nPrcSB0 := 0
+        Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"3")}, "Aguarde...", "Processando Preço 3",.F.)
+        If cGrTrib == "001" //- Tributado integralmente
+           nPrcSB0 := nPrcSB0 / nIcms 
+        Endif
+        SB0->B0_PRV3 := nPrcSB0
+        
+        //- Preço 4
+        nPrcSB0 := 0
+        Processa( {|| fPreco(@cGrupoSB1,@cUM,nCM1,"4")}, "Aguarde...", "Processando Preço 4",.F.)
+        SB0->B0_PRV4 := nPrcSB0
+        SB0->(MsUnlock())
+        
+        //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+        //³Atualiza custo médio a partir dos preços das lojas ³
+        //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+        dbSelectArea("SB1")
+        dbSetOrder(1)
+        If SB1->(dbSeek(xFilial("SB1")+cProduto))
+           RecLock("SB1",.F.)
+           SB1->B1_XCUSFIL := CustoMedio(cProduto)    
+           SB1->(MsUnLock())
+        Endif
+        dbSelectArea("TMP")
+     End Transaction
+     TMP->(dbSkip())
+  Enddo
+  ApMsgInfo("Processamento concluido com sucesso!")
 Return
 
 //-------------------------------------------------------------------
@@ -159,36 +169,57 @@ Função para retornar o preço conforme margem na tabela ZA1
 /*/
 //-------------------------------------------------------------------
 
-Static function fPreco(cGrupoSB1,cUM,nCusto,cPreco)
-
-Local nCalc1 := 0
-
-If ZA1->(dbSetOrder(1),dbSeek(xFilial("ZA1")+cGrupoSB1))
-
-    If cPreco == "1"
-        nCalc1 := ZA1->ZA1_MARG1/100
+Static Function fPreco(cGrupoSB1,cUM,nCusto,cPreco)
+  Local nPosUM := 0
+  Local nCalc1 := 0
+  Local nMg1 := 0
+  Local nMg2 := 0
+  Local nMg3 := 0
+  Local nMg4 := 0
+  Local aMargem := {}
+  
+  If ZA1->(dbSetOrder(1),dbSeek(xFilial("ZA1")+cGrupoSB1))
+     
+     Do While !ZA1->(Eof()) .And. ZA1->(ZA1_FILIAL+ZA1_MARCA) == xFilial("ZA1")+cGrupoSB1
+        Aadd(aMargem, { ZA1->ZA1_UM, ZA1->ZA1_MARG1, ZA1->ZA1_MARG2, ZA1->ZA1_MARG3, ZA1->ZA1_MARG4 })
+        ZA1->(DbSkip())   
+     Enddo      
+     ASort(aMargem,,, { |x, y| x < y } ) //- Ordena para garantir que caso exista UM em branco ela será a primeira 
+     
+     nPosUM := aScan(aMargem, {|x| x[1] == cUM } )
+     
+     If nPosUM > 0
+        nMg1 := aMargem[nPosUM][2]
+        nMg2 := aMargem[nPosUM][3]
+        nMg3 := aMargem[nPosUM][4]
+        nMg4 := aMargem[nPosUM][5]
+     Else
+        nMg1 := aMargem[1][2]
+        nMg2 := aMargem[1][3]
+        nMg3 := aMargem[1][4]
+        nMg4 := aMargem[1][5]
+     Endif 
+     
+     If cPreco == "1"
+        nCalc1 := nMg1 / 100
         nPrcSB0 := (nCalc1*nCusto)+nCusto
-    Endif
+     Endif
 
-    If cPreco == "2"
-        nCalc1 := ZA1->ZA1_MARG2/100
+     If cPreco == "2"
+        nCalc1 := nMg2 / 100
         nPrcSB0 := (nCalc1*nCusto)+nCusto
-    Endif
+     Endif
 
-    If cPreco == "3"
-        nCalc1 := ZA1->ZA1_MARG3/100
+     If cPreco == "3"
+        nCalc1 := nMg3 / 100
         nPrcSB0 := (nCalc1*nCusto)+nCusto
-    Endif
+     Endif
 
-    If cPreco == "4"
-        nCalc1 := ZA1->ZA1_MARG4/100
+     If cPreco == "4"
+        nCalc1 := nMg4 / 100
         nPrcSB0 := (nCalc1*nCusto)+nCusto
-    Endif
-
-EndIf
-
-//nPrcSB0 := Round(nPrcSB0,0)
-
+     Endif
+  EndIf
 Return
 
 ////////////////////////////////////
